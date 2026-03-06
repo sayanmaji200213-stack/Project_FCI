@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DQ Issue Management & Reporting</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: #e8ecf0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+  }
+  .dashboard-wrapper {
+    width: 1280px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    overflow: hidden;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a2e5a 0%, #1f3870 60%, #163060 100%);
+    color: #fff;
+    text-align: center;
+    padding: 12px 20px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 3px solid #c8a84b;
+  }
+  .body-layout {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    min-height: 620px;
+  }
+  /* LEFT SIDEBAR */
+  .sidebar {
+    background: #f2f4f8;
+    border-right: 1px solid #dde2ea;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sidebar-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1a2e5a;
+    margin-bottom: 4px;
+  }
+  .sidebar-title svg { width:14px;height:14px; }
+  .slicer-group { display: flex; flex-direction: column; gap: 2px; }
+  .slicer-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .slicer-select {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 10px;
+    border: 1px solid #c5ccd8;
+    border-radius: 3px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+  }
+  .slicer-select:focus { outline: none; border-color: #1a2e5a; }
+  .reset-btn {
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: linear-gradient(135deg, #1a2e5a, #2a4080);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s;
+  }
+  .reset-btn:hover { background: #c8a84b; color: #1a2e5a; }
+
+  /* MAIN CONTENT */
+  .main-content { display: flex; flex-direction: column; gap: 0; }
+
+  /* TOP ROW - KPI + Gauges */
+  .top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 200px;
+    gap: 0;
+    border-bottom: 1px solid #dde2ea;
+  }
+  .kpi-card {
+    padding: 10px 14px;
+    border-right: 1px solid #dde2ea;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: #fff;
+    transition: background 0.2s;
+  }
+  .kpi-card:hover { background: #f5f8ff; }
+  .kpi-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 4px;
+  }
+  .kpi-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a2e5a;
+    line-height: 1;
+  }
+  .gauges-container {
+    display: flex;
+    gap: 0;
+  }
+  .gauge-box {
+    flex: 1;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-left: 1px solid #dde2ea;
+  }
+  .gauge-title {
+    font-size: 8px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 2px;
+    letter-spacing: 0.4px;
+  }
+  .gauge-canvas-wrap { position:relative; width:80px; height:50px; }
+  .gauge-num {
+    position: absolute;
+    bottom: 2px; left: 50%; transform: translateX(-50%);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a2e5a;
+  }
+  .gauge-minmax {
+    display: flex;
+    justify-content: space-between;
+    width: 80px;
+    font-size: 8px;
+    color: #888;
+    margin-top: -2px;
+  }
+
+  /* MIDDLE ROW */
+  .middle-row {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    border-bottom: 1px solid #dde2ea;
+    min-height: 240px;
+  }
+  .chart-panel {
+    padding: 10px 14px;
+    border-right: 1px solid #dde2ea;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: #1a2e5a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .panel-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px; height: 14px;
+    background: #c8a84b;
+    border-radius: 2px;
+  }
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* DONUT + PIE area */
+  .donut-panel {
+    padding: 8px 10px;
+    border-bottom: 1px solid #dde2ea;
+    flex: 1;
+  }
+  .pie-panel {
+    padding: 8px 10px;
+    flex: 1;
+  }
+  .chart-container { position: relative; flex: 1; min-height: 0; }
+
+  /* BOTTOM ROW - Decomp Tree */
+  .bottom-row {
+    padding: 10px 14px;
+    background: #f9fafb;
+    border-top: 1px solid #dde2ea;
+  }
+  .decomp-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .decomp-col { display: flex; flex-direction: column; gap: 4px; }
+  .decomp-col-header {
+    background: #1a2e5a;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 3px;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .decomp-item {
+    background: #fff;
+    border: 1px solid #dde2ea;
+    border-left: 3px solid #1a2e5a;
+    font-size: 9px;
+    color: #333;
+    padding: 3px 7px;
+    border-radius: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .decomp-item .val {
+    font-weight: 600;
+    color: #1a2e5a;
+    font-size: 9px;
+  }
+  .decomp-item:nth-child(even) { border-left-color: #c8a84b; }
+
+  .legend-item {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 8px; color: #444; line-height: 1.4;
+  }
+  .legend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="dashboard-wrapper">
+  <div class="header">Data Quality (DQ) Issue Management &amp; Reporting</div>
+  <div class="body-layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-title">
+        <svg viewBox="0 0 16 16" fill="#1a2e5a"><path d="M1 3h14v2H1zm0 4h14v2H1zm0 4h14v2H1z"/></svg>
+        Filters
+      </div>
+      <div class="slicer-group">
+        <div class="slicer-label">Select Year</div>
+        <select class="slicer-select"><option>All</option><option>2022</option><option>2023</option><option>2024</option></select>
+      </div>
+      <div class="slicer-group">
+        <div class="slicer-label">Select Month</div>
+        <select class="slicer-select"><option>All</option><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select>
+      </div>
+      <div class="slicer-group">
+        <div class="slicer-label">Select Quarter</div>
+        <select class="slicer-select"><option>All</option><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select>
+      </div>
+      <div class="slicer-group">
+        <div class="slicer-label">Select CDE</div>
+        <select class="slicer-select"><option>All</option><option>CDE-001</option><option>CDE-002</option><option>CDE-003</option><option>CDE-004</option></select>
+      </div>
+      <div class="slicer-group">
+        <div class="slicer-label">Select DQ Rule</div>
+        <select class="slicer-select"><option>All</option><option>Rule-A</option><option>Rule-B</option><option>Rule-C</option><option>Rule-D</option></select>
+      </div>
+      <button class="reset-btn">&#8635; Reset</button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main-content">
+      <!-- TOP ROW: KPIs + Gauges -->
+      <div class="top-row">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Exceptions</div>
+          <div class="kpi-value">8.42K</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Unpaid Principal Balance</div>
+          <div class="kpi-value">$14.87bn</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Sec Unfunded Balance</div>
+          <div class="kpi-value">$17.64bn</div>
+        </div>
+        <div class="gauges-container">
+          <div class="gauge-box">
+            <div class="gauge-title">CDE With Exceptions</div>
+            <div class="gauge-canvas-wrap">
+              <canvas id="gauge1" width="80" height="50"></canvas>
+              <div class="gauge-num">48</div>
+            </div>
+            <div class="gauge-minmax"><span>0</span><span>109</span></div>
+          </div>
+          <div class="gauge-box">
+            <div class="gauge-title">DQ Rule With Exception</div>
+            <div class="gauge-canvas-wrap">
+              <canvas id="gauge2" width="80" height="50"></canvas>
+              <div class="gauge-num">176</div>
+            </div>
+            <div class="gauge-minmax"><span>0</span><span>507</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MIDDLE ROW: Combo Chart + Right col -->
+      <div class="middle-row">
+        <div class="chart-panel">
+          <div class="panel-title">Total Exposure by Exception Count</div>
+          <div class="chart-container" style="height:200px;">
+            <canvas id="comboChart"></canvas>
+          </div>
+        </div>
+        <div class="right-col">
+          <div class="donut-panel">
+            <div class="panel-title" style="font-size:9px;">Ops Team — Most Exceptions</div>
+            <div style="display:flex; gap:6px; align-items:center; height:110px;">
+              <canvas id="donutChart" style="max-width:100px; max-height:100px;"></canvas>
+              <div id="donutLegend" style="display:flex;flex-direction:column;gap:2px;font-size:7.5px;"></div>
+            </div>
+          </div>
+          <div class="pie-panel">
+            <div class="panel-title" style="font-size:9px;">Ops Team — Most Exposure</div>
+            <div style="display:flex; gap:6px; align-items:center; height:110px;">
+              <canvas id="pieChart" style="max-width:100px; max-height:100px;"></canvas>
+              <div id="pieLegend" style="display:flex;flex-direction:column;gap:2px;font-size:7.5px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM ROW: Decomp Tree -->
+      <div class="bottom-row">
+        <div class="panel-title">Decomposition Analysis — Deep Dive by Exception &amp; Exposure</div>
+        <div class="decomp-grid">
+          <div class="decomp-col">
+            <div class="decomp-col-header">OPS Team</div>
+            <div class="decomp-item">Global Loan Ops <span class="val">3,812</span></div>
+            <div class="decomp-item">Credit Ops <span class="val">1,944</span></div>
+            <div class="decomp-item">Risk Mgmt <span class="val">1,207</span></div>
+            <div class="decomp-item">Card Ops <span class="val">876</span></div>
+            <div class="decomp-item">Lending Ops - HDC <span class="val">583</span></div>
+          </div>
+          <div class="decomp-col">
+            <div class="decomp-col-header">CDE</div>
+            <div class="decomp-item">Loan Outstanding <span class="val">2,340</span></div>
+            <div class="decomp-item">Risk Rating <span class="val">1,820</span></div>
+            <div class="decomp-item">Maturity Date <span class="val">1,410</span></div>
+            <div class="decomp-item">Accrual Flag <span class="val">998</span></div>
+            <div class="decomp-item">Obligor Type <span class="val">754</span></div>
+          </div>
+          <div class="decomp-col">
+            <div class="decomp-col-header">DQ Rule</div>
+            <div class="decomp-item">Credit Risk Rating - 001 <span class="val">1,540</span></div>
+            <div class="decomp-item">Credit Risk Rating - 002 <span class="val">1,120</span></div>
+            <div class="decomp-item">Credit Risk Rating - MA <span class="val">890</span></div>
+            <div class="decomp-item">Loan Use A <span class="val">660</span></div>
+            <div class="decomp-item">Outstanding Balance D <span class="val">412</span></div>
+          </div>
+          <div class="decomp-col">
+            <div class="decomp-col-header">DQ Rule ID</div>
+            <div class="decomp-item">DQR-1041 <span class="val">$3.24bn</span></div>
+            <div class="decomp-item">DQR-1082 <span class="val">$2.87bn</span></div>
+            <div class="decomp-item">DQR-0934 <span class="val">$2.11bn</span></div>
+            <div class="decomp-item">DQR-1156 <span class="val">$1.73bn</span></div>
+            <div class="decomp-item">DQR-0772 <span class="val">$1.22bn</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// GAUGE CHART helper
+function drawGauge(canvasId, value, max, color) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h - 6;
+  const r = 34;
+  const startAngle = Math.PI;
+  const endAngle = 2 * Math.PI;
+  const fillAngle = startAngle + (value/max) * Math.PI;
+
+  ctx.clearRect(0,0,w,h);
+  // Track
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, startAngle, endAngle);
+  ctx.strokeStyle = '#dde2ea';
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  // Fill
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, startAngle, fillAngle);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+}
+drawGauge('gauge1', 48, 109, '#e84040');
+drawGauge('gauge2', 176, 507, '#2eb85c');
+
+// COMBO CHART
+const months = ['Jan\'22','Mar\'22','May\'22','Jul\'22','Sep\'22','Nov\'22','Jan\'23','Mar\'23','May\'23','Jul\'23','Sep\'23','Nov\'23','Jan\'24','Mar\'24','May\'24'];
+const exCount = [320,280,410,540,390,470,610,520,440,380,310,490,570,430,360];
+const exposure = [2.1,1.8,3.4,4.8,3.1,3.9,5.6,4.4,3.7,3.0,2.4,4.1,5.0,3.6,2.9];
+
+new Chart(document.getElementById('comboChart'), {
+  type: 'bar',
+  data: {
+    labels: months,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Exception Count',
+        data: exCount,
+        backgroundColor: 'rgba(26,46,90,0.75)',
+        yAxisID: 'y',
+        borderRadius: 2,
+      },
+      {
+        type: 'line',
+        label: '% of Total Exposure',
+        data: exposure,
+        borderColor: '#e84040',
+        backgroundColor: 'rgba(232,64,64,0.1)',
+        yAxisID: 'y1',
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: '#e84040',
+        borderWidth: 2,
+        fill: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: true, labels: { font: { size: 9 }, boxWidth: 10 } } },
+    scales: {
+      x: { ticks: { font: { size: 7 }, maxRotation: 45 }, grid: { display: false } },
+      y: { ticks: { font: { size: 8 } }, grid: { color: '#eee' }, title: { display: true, text: 'Exception Count', font: { size: 8 } } },
+      y1: { position: 'right', ticks: { font: { size: 8 } }, grid: { display: false }, title: { display: true, text: '$ Exposure (bn)', font: { size: 8 } } }
+    }
+  }
+});
+
+// DONUT CHART
+const opsTeams = ['Global Loan Ops','Credit Ops','Risk Mgmt','Card Ops - Hwy Offs','Private Sales Admin','Lending Ops - HDC','Risk Dimension'];
+const opsColors = ['#1a2e5a','#2a6496','#3498db','#c8a84b','#e84040','#2eb85c','#9b59b6'];
+const donutData = [38.2, 25.1, 12.4, 8.3, 6.8, 5.4, 3.8];
+const donutChart = new Chart(document.getElementById('donutChart'), {
+  type: 'doughnut',
+  data: { labels: opsTeams, datasets: [{ data: donutData, backgroundColor: opsColors, borderWidth: 1, borderColor: '#fff' }] },
+  options: {
+    responsive: false, cutout: '65%',
+    plugins: { legend: { display: false } },
+    animation: { animateRotate: true }
+  }
+});
+const donutLeg = document.getElementById('donutLegend');
+opsTeams.forEach((t,i) => {
+  donutLeg.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${opsColors[i]}"></div>${t} (${donutData[i]}%)</div>`;
+});
+
+// PIE CHART
+const pieData = [52.3, 18.7, 14.2, 8.6, 6.2];
+const pieTeams = ['Global Loan Ops','Credit Ops','Risk Mgmt','Private Sales Ops','Others'];
+const pieColors = ['#c8a84b','#1a2e5a','#2a6496','#e84040','#2eb85c'];
+const pieChart = new Chart(document.getElementById('pieChart'), {
+  type: 'pie',
+  data: { labels: pieTeams, datasets: [{ data: pieData, backgroundColor: pieColors, borderWidth: 1, borderColor: '#fff' }] },
+  options: {
+    responsive: false,
+    plugins: { legend: { display: false } }
+  }
+});
+const pieLeg = document.getElementById('pieLegend');
+pieTeams.forEach((t,i) => {
+  pieLeg.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${pieColors[i]}"></div>${t} (${pieData[i]}%)</div>`;
+});
+</script>
+</body>
+</html>
